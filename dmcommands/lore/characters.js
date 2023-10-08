@@ -18,7 +18,27 @@ const charCommand = {
                     .setAuthor({ name: "Character" })
                     .setTitle("List of Characters")
                 
-                const pageCount = Math.ceil(loreMaster.characters.length/15)
+                const _filter = [];
+                if (args.length > 1 && args[1].startsWith('"')) {
+                    let i;
+                    for (i = 1; i < args.length; i++) {
+                        _filter.push(args[i].replace('"', '').replace('"', '').toLowerCase())
+                        if (args[i].endsWith('"')) break;
+                    }
+                    args.splice(1, i);
+                }
+                
+
+                let characterList = loreMaster.characters;
+                if (_filter.length > 0) {
+                    characterList = characterList.filter(i => 
+                            _filter.filter(f => i.GetName().toLowerCase().includes(f) ||
+                                i.GetDesc().toLowerCase().includes(f)
+                            ).length > 0
+                        );
+                }
+                
+                const pageCount = Math.ceil(characterList.length/15)
                 let page = 1;
                 if (args.length > 1) page = args[1]*1;
 
@@ -26,8 +46,8 @@ const charCommand = {
                 if (page > pageCount) page = pageCount;
 
 
-                loreMaster.characters.slice((page-1)*15, page*15).forEach((char,_) => out.embed.addFields(
-                    { name: `${_+1}. ${char.GetName()} | ${char.GetUUID()}`, value: char.GetDesc() }
+                characterList.slice((page-1)*15, page*15).forEach((char,_) => out.embed.addFields(
+                    { name: `${_+1}. ${char.GetName()} [${char.GetUUID()}]`, value: char.GetDesc() }
                     ))
                 
                 out.embed.setFooter({ text: `Page ${page}/${pageCount}`, iconURL: 'https://media.discordapp.net/attachments/500361970952830979/1119402476853002370/Screenshot_2023-06-06_230749.png' });

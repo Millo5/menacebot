@@ -19,39 +19,30 @@ const commands = [
             out.embed = new EmbedBuilder()
                 .setColor(colour.util)
                 .setAuthor({ name: "Help" })
-                .setTitle(`'${args}'`)
-                .setDescription(this.desc)
-                .setTimestamp(this.date)
-                .setFooter({text: `UUID: ${this.uuid} | Created at `})
-                .addFields(
-                    {name: 'Lore', value: this.lore},
-                    {name: '\u200B', value: '\u200B'},
-                    {name: 'Last Modified', value: `<t:${this.GetLastUpdate()}:R>`}
-                );
-            
-
-            if (args.length > 1) {
-                // Find command
+                // .setDescription("List of all commands (help [command])")
+                // .setTimestamp(this.date)
+                // .setFooter({text: `UUID: ${this.uuid} | Created at `})
+                // .addFields(
+                    // {name: 'Lore', value: this.lore},
+                    // {name: '\u200B', value: '\u200B'},
+                    // {name: 'Last Modified', value: `<t:${this.GetLastUpdate()}:R>`}
+                // );
+            if (args.length == 1) {
+                commands.forEach(c => out.embed.addFields({name: c.name, value: c.desc}));
+            } else {
                 const cmd = commands.find(i => i.name.toLowerCase().startsWith(args[1]))
                 if (cmd) {
-                    // Create the response message
-                    out.msg += "\nUsage of `" + cmd.name+"`:";
-                    if (cmd.alias) out.msg += "\nAlias: `" + cmd.alias.join(", ")+"`";
-
-                    out.msg += "\n"+cmd.desc+"\n";
-                    
-                    // Add all the arguments
-                    if (cmd.args) cmd.args.forEach(i => out.msg += "\n`"+ cmd.name +" "+ i.name + "` - " + i.desc)
-
+                    let alias = ' ';
+                    if (cmd.alias) {
+                        alias = `[${cmd.alias.join(", ")}]`;
+                        out.embed.addFields({name: `aliases of: ${cmd.name}`, value: alias})
+                    }
+                    out.embed.setDescription(cmd.desc);
+                    if (cmd.args) cmd.args.forEach(i => out.embed.addFields({name: cmd.name +" "+ i.name, value: i.desc}))
                 } else {
-                    // Command doesn't exist
-                    out.msg += "\nCommand `"+args[1]+"` not found";
+                    out.embed.addFields({name: "Command not found", value: args[1]});
                 }
-            } else {
-                // default help command
-                commands.forEach(c => out.msg += "\n`" + c.name + "` - " + c.desc);
             }
-            out.msg += "\n~~                                                                 ~~"
             return out;
         }
     }

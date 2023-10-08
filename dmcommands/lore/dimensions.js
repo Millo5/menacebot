@@ -17,7 +17,7 @@ const dimCommand = {
                         .setAuthor({ name: "Dimension" })
                         .setTitle("List of Dimensions")
 
-                loreMaster.dimensions.forEach(dim => out.embed.addFields({ name: `${dim.GetName()} | ${dim.GetUUID()}`, value: dim.GetDesc() }))
+                loreMaster.dimensions.forEach(dim => out.embed.addFields({ name: `${dim.GetName()} [${dim.GetUUID()}]`, value: dim.GetDesc() }))
                 return out;
             }
         },

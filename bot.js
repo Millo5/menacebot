@@ -308,16 +308,20 @@ client.on("messageCreate", async (msg) => {
             msg.author.send("No permission :3")
             return;
         }
+        if (msg.author.id == '192324567090462720') {
+            if (msg.content == 'force-quit') {
+                client.destroy();
+                return;
+            }
+        }
         
-
-        log("DM Handle: " + msg.content)
+        log(`DM Handle: {${msg.author.username}} ${msg.content}`)
 
         const out = DMCommand(msg.content);
         
         if (!out.success) msg.author.send("Command not found. Type `help` for help.")
         else {
             const r = out.response;
-            log(r);
 
             switch (r.type) {
                 case "respond":
