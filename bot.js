@@ -5,6 +5,7 @@ const { Client, Events, GatewayIntentBits, Partials, RequestManager, SlashComman
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, AudioPlayer } = require('@discordjs/voice');
 const { join } = require('node:path');
 const { loreMaster } = require('./lore');
+const { dataHoarder } = require('./dataHoarder.js')
 const { DMCommand, setLoreMaster } = require('./dmcommands.js');
 const axios = require('axios')
 const Jimp = require('jimp');
@@ -67,6 +68,7 @@ var playingSound = false;
 var soundCount = 0
 
 loreMaster.load();
+dataHoarder.load();
 
 
 
@@ -120,6 +122,35 @@ const commands = [
         }
     },
     {
+        name: '8ball',
+        description: 'Oooooo... what is it ?? yes?? no??? hmmm???? who knowsssss',
+        argument: 'question',
+        callback: (client, interaction) => {
+            console.log(interaction);
+            const e = (a) => reply(interaction, `${interaction.member.nickname} asked: **${interaction.options._hoistedOptions[0].value}**?\n > \`${a}\``, true);
+            console.log(interaction.options._hoistedOptions[0].value);
+            if (Math.random() < 0.9) {
+                e("kill yourself");
+                return;
+            }
+            const responseOptions = [
+                "kill yourself",
+                "menace approves",
+                "fray sweeps",
+                "excelsus cries",
+                "clairvoyant crest was thinking about pause time again",
+                "womp womp",
+                "nuh uh",
+                "youre the beast",
+                "woah.",
+                "you should kill yourself now",
+                "bonk"
+            ]
+            e(responseOptions[Math.floor(Math.random() * responseOptions.length)]);
+            
+        }
+    },
+    {
         name: 'stoploopion',
         description: 'Loopion',
         callback: (client, interaction) => {
@@ -133,7 +164,11 @@ var loopionL = false;
 
 log(commands)
 
-async function reply(victim, msg) {
+async function reply(victim, msg, keep = false) {
+    if (keep) {
+        victim.reply(msg);
+        return;
+    }
     victim.reply(msg)
         .then(msg => {
             setTimeout(() => msg.delete(), 3000)
@@ -228,11 +263,13 @@ function playCharacterIntro(p1, p2) {
 
 function playVersusIntro(msg) {
     // msg: 'versus: Excelsus vs Cogwyn (Synsao vs xXBastianXx2)'
+    const [user1, user2] = /(?<=\()[^)]+(?=\))/.exec(msg)[0].split(' vs ');
     const [player1, player2 = player1] = msg
         .substring(msg.indexOf(':') + 2, msg.indexOf('(') - 1)
         .split(' vs ');
 
-    log(player1, player2)
+    log(`Game Start: ${player1} vs ${player2}`)
+    log(` ~ ${user1} vs ${user2}`)
 
     if (player1 == player2) {
         playCharacterIntro(player1, player2);
@@ -246,10 +283,14 @@ client.on('ready', async () => {
     log("Loading Commands")
     
     commands.forEach(cmd => {
+        log("Loading " + cmd.name)
         const command = new SlashCommandBuilder()
             .setName(cmd.name)
             .setDescription(cmd.description)
-        
+        if ("argument" in cmd) {
+            console.log(cmd.argument)
+            command.addStringOption(option => option.setName(cmd.argument).setDescription("...").setRequired(true));
+        }
         client.application.commands.create(command)
     })
 
@@ -293,6 +334,15 @@ client.on('interactionCreate', (interaction) => {
 client.on("messageCreate", async (msg) => {
     //console.log(msg)
 
+    const isMillo = msg.author.id == '192324567090462720';
+    const isDylan = msg.author.id == '193745543795703808';
+
+    if (isMillo) {
+        if (msg.content.startsWith("WITH THIS TREASURE, I SUMMON")) {
+            msg.channel.send("I have been summoned...");
+        }
+    }
+
     if (msg.channel.type == 1) {
         if (msg.author.bot) return;
 
@@ -305,6 +355,7 @@ client.on("messageCreate", async (msg) => {
             hasPerms = v._roles.includes('1118258163863535667');
         })
         if (!hasPerms) {
+            log(`Unauthored DM Attempt: {${msg.author.username}} ${msg.content}`)
             msg.author.send("No permission :3")
             return;
         }
@@ -317,8 +368,12 @@ client.on("messageCreate", async (msg) => {
         
         log(`DM Handle: {${msg.author.username}} ${msg.content}`)
 
-        const out = DMCommand(msg.content);
-        
+        let out;
+        try {
+            out = DMCommand(msg.content);
+        } catch (e) {
+            out = {response: {type: 'respond', message: `${e}`}}
+        }
         if (!out.success) msg.author.send("Command not found. Type `help` for help.")
         else {
             const r = out.response;
@@ -343,6 +398,7 @@ client.on("messageCreate", async (msg) => {
 
         if (msg.content.startsWith("winner: ")) {
             clearQueue();
+            log(` ~ Winner: ${mainChar}`)
             playCharacterSound('win', mainChar, winMessageCounts);
         }
         if (msg.content.startsWith("kill: ")) {
@@ -366,6 +422,29 @@ client.on("messageCreate", async (msg) => {
             clearQueue();
         }
 
+        if (msg.content.startsWith("data")) {
+            const datas = msg.content.split(";");
+
+            if (datas[1] == "playing") {
+                // data;playing;name1|kit1,name2|kit2
+                const players = datas[2].split(',');
+                players.forEach(player => {
+                    const name = player.split("|")[0];
+                    const kit = player.split("|")[1];
+                    
+                    dataHoarder.addPlayerInfo(name, "games_played", 1);
+                    dataHoarder.addPlayerInfo(name, `games_played_as_${kit}`, 1);
+                    dataHoarder.setPlayerInfo(name, `last_played`, 1);
+                });
+                dataHoarder.save();
+            } else if (datas[1] == "won") {
+                // data;won;name1,name2
+                players = datas[2].split(',');
+                players.forEach(player => dataHoarder.addPlayerInfo(player, "wins", 1));
+            }
+
+
+        }
 
         if (msg.content.startsWith("startgame")) {
             playSound(msg, join(__sounddir, 'countdown.mp3'));
@@ -384,6 +463,11 @@ client.on("messageCreate", async (msg) => {
         }
         if (msg.content.startsWith("AHOY")) {
             playSound(msg, join(__sounddir, 'ahoy!.mp3'), true);
+        }
+        if (msg.content.toLowerCase().startsWith("kys")) {
+            clearQueue();
+            loopionL = false;
+            playSound(msg, join(__sounddir, 'kys.mp3'));
         }
     }
     
@@ -404,105 +488,6 @@ client.on("voiceStateUpdate", async (ctx) => {
         if (!connection) ConnectToVoice();
     }
 })
-
-async function sendRandomGif(msg) {
-    const args = msg.content.trim().split(/ +/);
-
-    const menace = args.shift().toLowerCase();
-    log(menace);
-    if (!menace.includes('menace')) return;
-
-    const index = args.indexOf('of');
-    log(index);
-    if (index === -1 || args.length < index + 2) return;
-
-    const indexComma = args.indexOf(args.find(i => i.includes(',')));
-    log(indexComma);
-    if (indexComma === -1 || args.length < indexComma + 2) return;
-    
-
-    const tag = args.slice(index+1, indexComma+1).join(' ');
-    const captionText = args.slice(indexComma + 1).join(' ');
-    
-    const captionStart = captionText.indexOf("\"");
-    const captionText2 = captionText.slice(captionStart+1);
-    const captionEnd = captionText2.indexOf("\"");
-    const caption = captionText2.slice(0, captionEnd)
-    
-    log(tag);
-    log(caption);
-
-    try {
-        const gif = await getRandomGif(tag);
-        const updatedBuffer = await addCaptionToGif(gif, caption);
-        
-        log(updatedBuffer);
-
-    } catch (error) {
-
-    }
-}
-
-async function getRandomGif(tag) {
-    const apiKey = process.env.GIPHY_API_KEY;
-    const url = `https://api.giphy.com/v1/gifs/random?api_key=${apiKey}&tag=${encodeURIComponent(tag)}`;
-
-    const response = await axios.get(url);
-    log(response)
-    const gifUrl = response.data.data.url;
-    
-    return gifUrl;
-}
-
-async function addCaptionToGif(url, caption) {
-  try {
-    const response = await axios.get(url, { responseType: 'arraybuffer' });
-    const buffer = Buffer.from(response.data, 'binary');
-
-    const gif = await GIFWrap.parse(buffer);
-    const { width, height } = gif;
-
-    const encoder = new GIFEncoder(width, height);
-    const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext('2d');
-    registerFont('path/to/your/font.ttf', { family: 'FontName' }); // Replace with the path to your desired font
-
-    const modifiedFrames = [];
-
-    encoder.setTransparent(gif.transparentColorIndex);
-    encoder.createReadStream().on('data', () => {}); // Fixes an issue with gif-encoder
-
-    gif.frames.forEach((frame, index) => {
-      const image = new Image();
-      image.src = frame.bitmap;
-      ctx.clearRect(0, 0, width, height);
-      ctx.drawImage(image, 0, 0);
-
-      ctx.font = '32px FontName'; // Replace 'FontName' with your desired font family and size
-      ctx.fillStyle = 'white';
-      ctx.textAlign = 'center';
-      ctx.fillText(caption, width / 2, height - 40); // Adjust the position as needed
-
-      encoder.start();
-      encoder.setDelay(frame.delay);
-      encoder.setQuality(10); // Adjust the quality as needed
-
-      ctx.drawImage(image, 0, 0);
-      encoder.addFrame(ctx);
-
-      if (index === gif.frames.length - 1) {
-        encoder.finish();
-        const modifiedGifBuffer = encoder.out.getData();
-        modifiedFrames.push(modifiedGifBuffer);
-      }
-    });
-
-    return Buffer.concat(modifiedFrames);
-  } catch (error) {
-    console.error('Error adding caption to GIF:', error);
-    throw error;
-  }
-}
 
 
 client.login(process.env.DISCORD_TOKEN);
