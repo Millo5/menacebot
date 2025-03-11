@@ -47,6 +47,7 @@ var winMessageCounts = [];
 winMessageCounts["Menace"] = 4;
 winMessageCounts["Loopion"] = 4;
 winMessageCounts["Strikeout"] = 2;
+winMessageCounts["Corpus"] = 2;
 
 var killMessageCounts = [];
 
@@ -488,6 +489,8 @@ client.on("voiceStateUpdate", async (ctx) => {
         if (!connection) ConnectToVoice();
     }
 })
+
+
 
 
 client.login(process.env.DISCORD_TOKEN);
